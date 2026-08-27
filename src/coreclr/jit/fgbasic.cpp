@@ -1207,8 +1207,8 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, Fixed
                             case NI_AVX2_TrailingZeroCount:
                             case NI_AVX2_X64_LeadingZeroCount:
                             case NI_AVX2_X64_TrailingZeroCount:
-                            case NI_X86Base_PopCount:
-                            case NI_X86Base_X64_PopCount:
+                            case NI_SSE42_PopCount:
+                            case NI_SSE42_X64_PopCount:
                             case NI_X86Base_BitScanForward:
                             case NI_X86Base_X64_BitScanForward:
                             case NI_X86Base_BitScanReverse:

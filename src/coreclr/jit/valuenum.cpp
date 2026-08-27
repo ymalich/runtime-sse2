@@ -7308,8 +7308,8 @@ bool ValueNumStore::IsVNNeverNegative(ValueNum vn)
 
 #if defined(TARGET_XARCH) || defined(TARGET_ARM64) // TODO-WASM: Handle popcount /trailing/leading zero count
 #if defined(TARGET_XARCH)
-                case VNF_HWI_X86Base_PopCount:
-                case VNF_HWI_X86Base_X64_PopCount:
+                case VNF_HWI_SSE42_PopCount:
+                case VNF_HWI_SSE42_X64_PopCount:
                 case VNF_HWI_AVX2_LeadingZeroCount:
                 case VNF_HWI_AVX2_TrailingZeroCount:
                 case VNF_HWI_AVX2_X64_LeadingZeroCount:
@@ -8683,7 +8683,7 @@ ValueNum ValueNumStore::EvalHWIntrinsicFunUnary(GenTreeHWIntrinsic* tree,
                 return VNForLongCon(static_cast<int64_t>(result));
             }
 
-            case NI_X86Base_PopCount:
+            case NI_SSE42_PopCount:
             {
                 assert(!varTypeIsSmall(type) && !varTypeIsLong(type));
 
@@ -8693,7 +8693,7 @@ ValueNum ValueNumStore::EvalHWIntrinsicFunUnary(GenTreeHWIntrinsic* tree,
                 return VNForIntCon(static_cast<int32_t>(result));
             }
 
-            case NI_X86Base_X64_PopCount:
+            case NI_SSE42_X64_PopCount:
             {
                 assert(varTypeIsLong(type));
 
@@ -9955,7 +9955,7 @@ ValueNum ValueNumStore::EvalHWIntrinsicFunTernary(
         }
 
 #if defined(TARGET_XARCH)
-        case NI_X86Base_BlendVariable:
+        case NI_SSE42_BlendVariable:
         case NI_AVX_BlendVariable:
         case NI_AVX2_BlendVariable:
         case NI_AVX512_BlendVariableMask:

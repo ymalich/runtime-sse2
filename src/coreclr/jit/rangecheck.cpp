@@ -950,8 +950,8 @@ Range RangeCheck::GetRangeFromAssertionsWorker(
             case VNF_HWI_AVX2_TrailingZeroCount:
             case VNF_HWI_AVX2_X64_LeadingZeroCount:
             case VNF_HWI_AVX2_X64_TrailingZeroCount:
-            case VNF_HWI_X86Base_PopCount:
-            case VNF_HWI_X86Base_X64_PopCount:
+            case VNF_HWI_SSE42_PopCount:
+            case VNF_HWI_SSE42_X64_PopCount:
 #elif defined(TARGET_ARM64)
             case VNF_HWI_ArmBase_LeadingZeroCount:
             case VNF_HWI_ArmBase_Arm64_LeadingZeroCount:
