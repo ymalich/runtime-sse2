@@ -12,6 +12,7 @@
 #define IntrinsicConstants_Invalid (1 << 31)
 
 #if defined(HOST_X86) || defined(HOST_AMD64)
+#define XArchIntrinsicConstants_Sse42 (1 << 30)
 #define XArchIntrinsicConstants_Avx (1 << 0)
 #define XArchIntrinsicConstants_Avx2 (1 << 1)
 #define XArchIntrinsicConstants_Avx512 (1 << 2)

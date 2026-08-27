@@ -32,19 +32,14 @@ namespace System.CommandLine
 
             if ((targetArchitecture == TargetArchitecture.X86) || (targetArchitecture == TargetArchitecture.X64))
             {
-                bool isAppleOS = targetOS is TargetOS.OSX or TargetOS.MacCatalyst
-                    or TargetOS.iOSSimulator or TargetOS.tvOSSimulator;
+                // We require SSE2 everywhere.
+                //
+                // For NativeAOT, this represents the minimum hardware required to run.
+                //
+                // ReadyToRun images are also built with this same baseline so that they can run
+                // on any hardware that supports SSE2, with opportunistic light-up for newer ISAs.
 
-                if (isReadyToRun && !isAppleOS)
-                {
-                    // ReadyToRun can presume AVX2, BMI1, BMI2, F16C, FMA, LZCNT, and MOVBE
-                    instructionSetSupportBuilder.AddSupportedInstructionSet("x86-64-v3");
-                }
-                else
-                {
-                    // Otherwise, we require SSE4.2 and POPCNT
-                    instructionSetSupportBuilder.AddSupportedInstructionSet("x86-64-v2");
-                }
+                instructionSetSupportBuilder.AddSupportedInstructionSet("base");
             }
             else if (targetArchitecture == TargetArchitecture.ARM64)
             {
@@ -249,6 +244,7 @@ namespace System.CommandLine
                 // Note that we do not indicate support for AVX, or any other instruction set which uses the VEX encodings as
                 // the presence of those makes otherwise acceptable code be unusable on hardware which does not support VEX encodings.
                 //
+                optimisticInstructionSetSupportBuilder.AddSupportedInstructionSet("sse42");
                 optimisticInstructionSetSupportBuilder.AddSupportedInstructionSet("aes");
                 optimisticInstructionSetSupportBuilder.AddSupportedInstructionSet("gfni");
                 optimisticInstructionSetSupportBuilder.AddSupportedInstructionSet("sha");
