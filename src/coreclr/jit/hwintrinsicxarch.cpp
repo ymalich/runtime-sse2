@@ -20,6 +20,8 @@ static CORINFO_InstructionSet X64VersionOfIsa(CORINFO_InstructionSet isa)
     {
         case InstructionSet_X86Base:
             return InstructionSet_X86Base_X64;
+        case InstructionSet_SSE42:
+            return InstructionSet_SSE42_X64;
         case InstructionSet_AVX:
             return InstructionSet_AVX_X64;
         case InstructionSet_AVX2:
@@ -355,7 +357,7 @@ CORINFO_InstructionSet Compiler::lookupInstructionSet(const char* className)
         }
         else if (strcmp(className + 1, "opcnt") == 0)
         {
-            return InstructionSet_X86Base;
+            return InstructionSet_SSE42;
         }
     }
     else if (className[0] == 'S')
@@ -372,20 +374,20 @@ CORINFO_InstructionSet Compiler::lookupInstructionSet(const char* className)
             }
             else if (strcmp(className + 3, "3") == 0)
             {
-                return InstructionSet_X86Base;
+                return InstructionSet_SSE42;
             }
             else if (strcmp(className + 3, "41") == 0)
             {
-                return InstructionSet_X86Base;
+                return InstructionSet_SSE42;
             }
             else if (strcmp(className + 3, "42") == 0)
             {
-                return InstructionSet_X86Base;
+                return InstructionSet_SSE42;
             }
         }
         else if (strcmp(className + 1, "sse3") == 0)
         {
-            return InstructionSet_X86Base;
+            return InstructionSet_SSE42;
         }
     }
     else if (className[0] == 'V')
@@ -875,6 +877,7 @@ int HWIntrinsicInfo::lookupIval(Compiler* comp, NamedIntrinsic id, var_types sim
     switch (id)
     {
         case NI_X86Base_CompareEqual:
+        case NI_SSE42_CompareEqual:
         case NI_X86Base_CompareScalarEqual:
         case NI_AVX_CompareEqual:
         case NI_AVX512_CompareEqualMask:
@@ -891,6 +894,7 @@ int HWIntrinsicInfo::lookupIval(Compiler* comp, NamedIntrinsic id, var_types sim
         }
 
         case NI_X86Base_CompareGreaterThan:
+        case NI_SSE42_CompareGreaterThan:
         case NI_X86Base_CompareScalarGreaterThan:
         case NI_AVX_CompareGreaterThan:
         case NI_AVX512_CompareGreaterThanMask:
@@ -912,6 +916,7 @@ int HWIntrinsicInfo::lookupIval(Compiler* comp, NamedIntrinsic id, var_types sim
         }
 
         case NI_X86Base_CompareLessThan:
+        case NI_SSE42_CompareLessThan:
         case NI_X86Base_CompareScalarLessThan:
         case NI_AVX_CompareLessThan:
         case NI_AVX512_CompareLessThanMask:
@@ -1077,54 +1082,54 @@ int HWIntrinsicInfo::lookupIval(Compiler* comp, NamedIntrinsic id, var_types sim
             return static_cast<int>(FloatComparisonMode::UnorderedNonSignaling);
         }
 
-        case NI_X86Base_Ceiling:
-        case NI_X86Base_CeilingScalar:
+        case NI_SSE42_Ceiling:
+        case NI_SSE42_CeilingScalar:
         case NI_AVX_Ceiling:
         {
             FALLTHROUGH;
         }
 
-        case NI_X86Base_RoundToPositiveInfinity:
-        case NI_X86Base_RoundToPositiveInfinityScalar:
+        case NI_SSE42_RoundToPositiveInfinity:
+        case NI_SSE42_RoundToPositiveInfinityScalar:
         case NI_AVX_RoundToPositiveInfinity:
         {
             assert(varTypeIsFloating(simdBaseType));
             return static_cast<int>(FloatRoundingMode::ToPositiveInfinity);
         }
 
-        case NI_X86Base_Floor:
-        case NI_X86Base_FloorScalar:
+        case NI_SSE42_Floor:
+        case NI_SSE42_FloorScalar:
         case NI_AVX_Floor:
         {
             FALLTHROUGH;
         }
 
-        case NI_X86Base_RoundToNegativeInfinity:
-        case NI_X86Base_RoundToNegativeInfinityScalar:
+        case NI_SSE42_RoundToNegativeInfinity:
+        case NI_SSE42_RoundToNegativeInfinityScalar:
         case NI_AVX_RoundToNegativeInfinity:
         {
             assert(varTypeIsFloating(simdBaseType));
             return static_cast<int>(FloatRoundingMode::ToNegativeInfinity);
         }
 
-        case NI_X86Base_RoundCurrentDirection:
-        case NI_X86Base_RoundCurrentDirectionScalar:
+        case NI_SSE42_RoundCurrentDirection:
+        case NI_SSE42_RoundCurrentDirectionScalar:
         case NI_AVX_RoundCurrentDirection:
         {
             assert(varTypeIsFloating(simdBaseType));
             return static_cast<int>(FloatRoundingMode::CurrentDirection);
         }
 
-        case NI_X86Base_RoundToNearestInteger:
-        case NI_X86Base_RoundToNearestIntegerScalar:
+        case NI_SSE42_RoundToNearestInteger:
+        case NI_SSE42_RoundToNearestIntegerScalar:
         case NI_AVX_RoundToNearestInteger:
         {
             assert(varTypeIsFloating(simdBaseType));
             return static_cast<int>(FloatRoundingMode::ToNearestInteger);
         }
 
-        case NI_X86Base_RoundToZero:
-        case NI_X86Base_RoundToZeroScalar:
+        case NI_SSE42_RoundToZero:
+        case NI_SSE42_RoundToZeroScalar:
         case NI_AVX_RoundToZero:
         {
             assert(varTypeIsFloating(simdBaseType));
@@ -2175,7 +2180,7 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
             break;
         }
 
-        case NI_X86Base_BlendVariable:
+        case NI_SSE42_BlendVariable:
         case NI_AVX_BlendVariable:
         case NI_AVX2_BlendVariable:
         case NI_AVX512_BlendVariable:
@@ -2280,6 +2285,7 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
         }
 
         case NI_X86Base_CompareEqual:
+        case NI_SSE42_CompareEqual:
         case NI_AVX_CompareEqual:
         case NI_AVX2_CompareEqual:
         case NI_AVX512_CompareEqual:
@@ -2300,6 +2306,7 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
         }
 
         case NI_X86Base_CompareGreaterThan:
+        case NI_SSE42_CompareGreaterThan:
         case NI_AVX_CompareGreaterThan:
         case NI_AVX2_CompareGreaterThan:
         case NI_AVX512_CompareGreaterThan:
@@ -2339,6 +2346,7 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
         }
 
         case NI_X86Base_CompareLessThan:
+        case NI_SSE42_CompareLessThan:
         case NI_AVX_CompareLessThan:
         case NI_AVX2_CompareLessThan:
         case NI_AVX512_CompareLessThan:
