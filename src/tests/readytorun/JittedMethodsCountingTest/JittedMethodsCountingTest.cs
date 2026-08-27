@@ -2,10 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Runtime;
-using System.Runtime.Intrinsics.Arm;
-using System.Runtime.Intrinsics.X86;
-using System.Runtime.InteropServices;
+using JitInfo = System.Runtime.JitInfo;
 using Xunit;
 using TestLibrary;
 
@@ -47,11 +44,10 @@ public class JittedMethodsCountingTest
 
     private static bool IsHardwareIntrinsicsEnabled()
     {
-        return RuntimeInformation.ProcessArchitecture switch
-        {
-            Architecture.X86 or Architecture.X64 => OperatingSystem.IsMacOS() ? Sse42.IsSupported : Avx2.IsSupported,
-            Architecture.Arm64 => AdvSimd.IsSupported,
-            _ => true,
-        };
+        string? dotnetEnableHWIntrinsics =
+            Environment.GetEnvironmentVariable("DOTNET_EnableHWIntrinsic");
+
+        return (string.IsNullOrEmpty(dotnetEnableHWIntrinsics)
+                || dotnetEnableHWIntrinsics != "0");
     }
 }

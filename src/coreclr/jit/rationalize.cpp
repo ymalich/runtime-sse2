@@ -437,9 +437,14 @@ void Rationalizer::RewriteHWIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTre
         {
             if (simdSize == 16)
             {
-                // We want to keep this as is, because we'll rewrite it in post-order
                 assert(varTypeIsShort(simdBaseType));
-                return;
+
+                if (m_compiler->compOpportunisticallyDependsOn(InstructionSet_SSE42))
+                {
+                    // We want to keep this as is, because we'll rewrite it in post-order
+                    return;
+                }
+                break;
             }
             FALLTHROUGH;
         }
@@ -744,7 +749,7 @@ void Rationalizer::RewriteHWIntrinsicBlendv(GenTree** use, Compiler::GenTreeStac
     }
     else
     {
-        intrinsic = NI_X86Base_BlendVariable;
+        intrinsic = NI_SSE42_BlendVariable;
     }
 
     node->SetSimdBaseType(simdBaseType);

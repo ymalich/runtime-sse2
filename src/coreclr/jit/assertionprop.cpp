@@ -438,8 +438,8 @@ static void optAssertionProp_HWIntrinsic(Compiler* comp, GenTreeHWIntrinsic* tre
                 case NI_AVX2_TrailingZeroCount:
                 case NI_AVX2_X64_LeadingZeroCount:
                 case NI_AVX2_X64_TrailingZeroCount:
-                case NI_X86Base_PopCount:
-                case NI_X86Base_X64_PopCount:
+                case NI_SSE42_PopCount:
+                case NI_SSE42_X64_PopCount:
 #elif defined(TARGET_ARM64)
                 case NI_ArmBase_LeadingZeroCount:
                 case NI_ArmBase_Arm64_LeadingZeroCount:

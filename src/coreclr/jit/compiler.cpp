@@ -6126,6 +6126,11 @@ int Compiler::compCompileAfterInit(CORINFO_MODULE_HANDLE classPtr,
 
         instructionSetFlags.AddInstructionSet(InstructionSet_X86Base);
 
+        if (JitConfig.EnableSSE42() != 0)
+        {
+            instructionSetFlags.AddInstructionSet(InstructionSet_SSE42);
+        }
+
         if (JitConfig.EnableAVX() != 0)
         {
             instructionSetFlags.AddInstructionSet(InstructionSet_AVX);
