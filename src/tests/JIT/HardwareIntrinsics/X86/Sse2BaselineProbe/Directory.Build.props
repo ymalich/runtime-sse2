@@ -1,0 +1,7 @@
+<Project>
+  <!-- Keep this probe standalone so it can be copied to and built on an SSE2 test machine. -->
+  <PropertyGroup>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>

@@ -100,6 +100,8 @@ namespace Internal.ReadyToRunConstants
                     {
                         case InstructionSet.X64_X86Base: return ReadyToRunInstructionSet.X86Base;
                         case InstructionSet.X64_X86Base_X64: return ReadyToRunInstructionSet.X86Base;
+                        case InstructionSet.X64_SSE42: return ReadyToRunInstructionSet.Sse42;
+                        case InstructionSet.X64_SSE42_X64: return ReadyToRunInstructionSet.Sse42;
                         case InstructionSet.X64_AVX: return ReadyToRunInstructionSet.Avx;
                         case InstructionSet.X64_AVX_X64: return ReadyToRunInstructionSet.Avx;
                         case InstructionSet.X64_AVX2: return ReadyToRunInstructionSet.Avx2;
@@ -155,6 +157,8 @@ namespace Internal.ReadyToRunConstants
                     {
                         case InstructionSet.X86_X86Base: return ReadyToRunInstructionSet.X86Base;
                         case InstructionSet.X86_X86Base_X64: return null;
+                        case InstructionSet.X86_SSE42: return ReadyToRunInstructionSet.Sse42;
+                        case InstructionSet.X86_SSE42_X64: return null;
                         case InstructionSet.X86_AVX: return ReadyToRunInstructionSet.Avx;
                         case InstructionSet.X86_AVX_X64: return null;
                         case InstructionSet.X86_AVX2: return ReadyToRunInstructionSet.Avx2;

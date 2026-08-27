@@ -1401,7 +1401,7 @@ void EEJitManager::SetCpuInfo()
     if ((cpuFeatures & IntrinsicConstants_Invalid) != 0)
     {
 #if defined(TARGET_X86) || defined(TARGET_AMD64)
-        EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, W("\nThe current CPU is missing one or more of the following instruction sets: SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT\n"));
+        EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, W("\nThe current CPU is missing one or more of the following instruction sets: SSE, SSE2\n"));
 #elif defined(TARGET_ARM64) && (defined(TARGET_OSX) || defined(TARGET_MACCATALYST))
         EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, W("\nThe current CPU is missing one or more of the following instruction sets: AdvSimd, LSE\n"));
 #elif defined(TARGET_ARM64)
@@ -1452,6 +1452,12 @@ void EEJitManager::SetCpuInfo()
     if (g_pConfig->EnableHWIntrinsic())
     {
         CPUCompileFlags.Set(InstructionSet_X86Base);
+    }
+
+    if (((cpuFeatures & XArchIntrinsicConstants_Sse42) != 0) &&
+        CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_EnableSSE42))
+    {
+        CPUCompileFlags.Set(InstructionSet_SSE42);
     }
 
     // x86-64-v3

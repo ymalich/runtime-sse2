@@ -292,12 +292,7 @@ int minipal_getcpufeatures(void)
     bool hasApxDependencies = false;
 
     if (((cpuidInfo[CPUID_EDX] & (1 << 25)) == 0) ||                                                            // SSE
-        ((cpuidInfo[CPUID_EDX] & (1 << 26)) == 0) ||                                                            // SSE2
-        ((cpuidInfo[CPUID_ECX] & (1 << 0)) == 0) ||                                                             // SSE3
-        ((cpuidInfo[CPUID_ECX] & (1 << 9)) == 0) ||                                                             // SSSE3
-        ((cpuidInfo[CPUID_ECX] & (1 << 19)) == 0) ||                                                            // SSE4.1
-        ((cpuidInfo[CPUID_ECX] & (1 << 20)) == 0) ||                                                            // SSE4.2
-        ((cpuidInfo[CPUID_ECX] & (1 << 23)) == 0))                                                              // POPCNT
+        ((cpuidInfo[CPUID_EDX] & (1 << 26)) == 0))                                                              // SSE2
     {
         // One of the baseline ISAs is not supported
         result |= IntrinsicConstants_Invalid;
@@ -309,18 +304,27 @@ int minipal_getcpufeatures(void)
         result |= XArchIntrinsicConstants_Aes;
     }
 
-    if (((cpuidInfo[CPUID_ECX] & (1 << 27)) != 0) &&                                                            // OSXSAVE
-        ((cpuidInfo[CPUID_ECX] & (1 << 28)) != 0))                                                              // AVX
+    if (((cpuidInfo[CPUID_ECX] & (1 << 0)) != 0) &&                                                             // SSE3
+        ((cpuidInfo[CPUID_ECX] & (1 << 9)) != 0) &&                                                             // SSSE3
+        ((cpuidInfo[CPUID_ECX] & (1 << 19)) != 0) &&                                                            // SSE4.1
+        ((cpuidInfo[CPUID_ECX] & (1 << 20)) != 0) &&                                                            // SSE4.2
+        ((cpuidInfo[CPUID_ECX] & (1 << 23)) != 0))                                                              // POPCNT
     {
-        if (IsAvxEnabled() && (xmmYmmStateSupport() == 1))                                                      // XGETBV == 11
-        {
-            result |= XArchIntrinsicConstants_Avx;
+        result |= XArchIntrinsicConstants_Sse42;
 
-            if (((cpuidInfo[CPUID_ECX] & (1 << 29)) != 0) &&                                                    // F16C
-                ((cpuidInfo[CPUID_ECX] & (1 << 12)) != 0) &&                                                    // FMA
-                ((cpuidInfo[CPUID_ECX] & (1 << 22)) != 0))                                                      // MOVBE
+        if (((cpuidInfo[CPUID_ECX] & (1 << 27)) != 0) &&                                                        // OSXSAVE
+            ((cpuidInfo[CPUID_ECX] & (1 << 28)) != 0))                                                          // AVX
+        {
+            if (IsAvxEnabled() && (xmmYmmStateSupport() == 1))                                                  // XGETBV == 11
             {
-                hasAvx2Dependencies = true;
+                result |= XArchIntrinsicConstants_Avx;
+
+                if (((cpuidInfo[CPUID_ECX] & (1 << 29)) != 0) &&                                                // F16C
+                    ((cpuidInfo[CPUID_ECX] & (1 << 12)) != 0) &&                                                // FMA
+                    ((cpuidInfo[CPUID_ECX] & (1 << 22)) != 0))                                                  // MOVBE
+                {
+                    hasAvx2Dependencies = true;
+                }
             }
         }
     }
