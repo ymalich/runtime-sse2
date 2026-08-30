@@ -8,14 +8,21 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <KnownFrameworkReference Update="Microsoft.NETCore.App">
+      <DefaultRuntimeFrameworkVersion>11.0.0-sse2</DefaultRuntimeFrameworkVersion>
+      <LatestRuntimeFrameworkVersion>11.0.0-sse2</LatestRuntimeFrameworkVersion>
+    </KnownFrameworkReference>
+    <KnownAppHostPack Update="Microsoft.NETCore.App">
+      <AppHostPackVersion>11.0.0-sse2</AppHostPackVersion>
+    </KnownAppHostPack>
     <KnownILCompilerPack Update="Microsoft.DotNet.ILCompiler">
-      <ILCompilerPackVersion>11.0.0-dev</ILCompilerPackVersion>
+      <ILCompilerPackVersion>11.0.0-sse2</ILCompilerPackVersion>
     </KnownILCompilerPack>
     <KnownRuntimePack Update="Microsoft.NETCore.App">
-      <LatestRuntimeFrameworkVersion>11.0.0-dev</LatestRuntimeFrameworkVersion>
+      <LatestRuntimeFrameworkVersion>11.0.0-sse2</LatestRuntimeFrameworkVersion>
     </KnownRuntimePack>
     <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks">
-      <ILLinkPackVersion>11.0.0-dev</ILLinkPackVersion>
+      <ILLinkPackVersion>11.0.0-sse2</ILLinkPackVersion>
     </KnownILLinkPack>
   </ItemGroup>
 </Project>

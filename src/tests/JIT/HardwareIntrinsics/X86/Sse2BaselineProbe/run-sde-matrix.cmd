@@ -3,40 +3,39 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "MODE=%~1"
 set "PROBE=%~2"
-set "RUNTIME_OR_SDE=%~3"
-set "SDE_EXE=%~4"
+set "SDE_EXE=%~3"
 
-if not defined MODE set "MODE=jit"
+if not defined MODE set "MODE=single-file"
 
-if /i "%MODE%"=="jit" goto :jit
 if /i "%MODE%"=="aot" goto :aot
+if /i "%MODE%"=="single-file" goto :singlefile
+if /i "%MODE%"=="singlefile" goto :singlefile
 
 echo Usage:
-echo   %~nx0 jit [probe.dll] [corerun.exe] [sde.exe]
 echo   %~nx0 aot [probe.exe] [sde.exe]
+echo   %~nx0 single-file [probe.exe] [sde.exe]
 exit /b 2
 
-:jit
-if not defined PROBE set "PROBE=%~dp0bin\Release\net11.0\Sse2BaselineProbe.dll"
-if not defined RUNTIME_OR_SDE set "RUNTIME_OR_SDE=%~dp0..\..\..\..\..\..\artifacts\sse2-baseline-probe\core_root\corerun.exe"
+:singlefile
+if not defined PROBE set "PROBE=%~dp0publish-single-file\Sse2BaselineProbe.exe"
 if not defined SDE_EXE set "SDE_EXE=T:\SDE\sde.exe"
 
 for %%P in (p4p mrm pnr nhm) do (
     echo.
-    echo ==== JIT profile %%P ====
-    call "%~dp0run-sde-jit.cmd" "%SDE_EXE%" "%RUNTIME_OR_SDE%" "%PROBE%" %%P
+    echo ==== Single-file JIT profile %%P ====
+    call "%~dp0run-sde-single-file.cmd" "%SDE_EXE%" "%PROBE%" %%P
     if errorlevel 1 exit /b !ERRORLEVEL!
 )
 exit /b 0
 
 :aot
-if not defined PROBE set "PROBE=%~dp0publish\Sse2BaselineProbe.exe"
-if not defined RUNTIME_OR_SDE set "RUNTIME_OR_SDE=T:\SDE\sde.exe"
+if not defined PROBE set "PROBE=%~dp0publish-aot\Sse2BaselineProbe.exe"
+if not defined SDE_EXE set "SDE_EXE=T:\SDE\sde.exe"
 
 for %%P in (p4p mrm pnr nhm) do (
     echo.
     echo ==== NativeAOT profile %%P ====
-    call "%~dp0run-sde-aot.cmd" "%RUNTIME_OR_SDE%" "%PROBE%" %%P
+    call "%~dp0run-sde-aot.cmd" "%SDE_EXE%" "%PROBE%" %%P
     if errorlevel 1 exit /b !ERRORLEVEL!
 )
 exit /b 0
