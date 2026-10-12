@@ -25,11 +25,11 @@ The upstream .NET 11 runtime raised its x86/x64 requirements and uses newer inst
 
 AVX, AVX2, and newer instruction sets remain available on supported processors. Tiered JIT compilation can optimize hot methods for the actual CPU at runtime.
 
-The current Windows x64 build has been tested with Intel SDE profiles and on an AMD Athlon II x4 system. The SSE2 baseline probe passed in both self-contained JIT single-file and NativeAOT configurations.
+The current Windows x64 build has been tested with Intel SDE profiles and on an AMD Athlon II x4 system. The SSE2 baseline probe passed in both self-contained JIT single-file and NativeAOT configurations. The Windows x86 runtime and its self-contained single-file JIT probe have also been built successfully and tested under the Intel SDE `p4p` profile.
 
 ## Important limitations
 
-- The instructions below describe the validated `win-x64` configuration.
+- The general publication examples below use the validated `win-x64` configuration. A separate section documents the validated `win-x86` build and single-file JIT test.
 - A target processor must support SSE2.
 - Restoring CPU compatibility does not add support for operating systems that are unsupported by .NET 11.
 - NativeAOT has no JIT fallback. Its instruction-set baseline must be compatible with the target CPU.
@@ -64,6 +64,38 @@ Runtime identifier:        win-x64
 ```
 
 Replace the repository path if your checkout is elsewhere.
+
+### Building and testing Windows x86
+
+Use a separate checkout for the x86 artifacts so that x64 and x86 build outputs and repository-local runtime installations cannot be mixed. From the root of that checkout, run:
+
+```cmd
+build-local-runtime-sse2-x86.cmd
+```
+
+The x86 helper builds the Release runtime, x86 host, libraries, Crossgen2, NativeAOT compiler and runtime pack, and ILLink package. Expected packages include:
+
+```text
+Microsoft.NETCore.App.Runtime.win-x86.11.0.0-sse2.nupkg
+Microsoft.NETCore.App.Host.win-x86.11.0.0-sse2.nupkg
+Microsoft.NETCore.App.Crossgen2.win-x86.11.0.0-sse2.nupkg
+runtime.win-x86.Microsoft.DotNet.ILCompiler.11.0.0-sse2.nupkg
+Microsoft.NETCore.App.Runtime.NativeAOT.win-x86.11.0.0-sse2.nupkg
+dotnet-runtime-11.0.0-sse2-win-x86.msi
+dotnet-runtime-11.0.0-sse2-win-x86.zip
+```
+
+The x86 build installs the x86 custom shared framework into the checkout's `.dotnet` directory. That directory also contains an x64 SDK host, so it must not be used to run framework-dependent build tools after the x86 runtime installation: an x64 process cannot load the x86 `hostpolicy.dll`. The supplied x86 single-file publication helper avoids this architecture mismatch by using a system-wide x64 .NET 11 SDK and starting it outside the repository, where the repository `global.json` cannot select the local SDK:
+
+```cmd
+cd src\tests\JIT\HardwareIntrinsics\X86\Sse2BaselineProbe
+publish-local-single-file-x86.cmd
+run-sde-x86.cmd
+```
+
+`publish-local-single-file-x86.cmd` publishes a self-contained, trimmed `win-x86` executable to `publish-single-file-x86`. It accepts an optional full path to an alternative system x64 `dotnet.exe` as its first argument. `run-sde-x86.cmd` uses `T:\SDE\sde.exe`, the generated probe, and the `p4p` CPU profile by default; these can be overridden with its first, second, and third arguments respectively.
+
+The validated `p4p` result reports a 32-bit process, exposes SSE and SSE2 only, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passes all 243 probe checks. A framework-dependent `sde -> dotnet.exe -> application.dll` test is not recommended for this x86 check because the tested Intel SDE build crashed in its internal IA-32 `pind.exe` backend. The self-contained single-file executable is the supported x86 SDE path.
 
 ## Configuring an application project
 
@@ -278,12 +310,14 @@ Useful commands in that directory include:
 publish-local-self-contained.cmd
 publish-local-single-file.cmd
 publish-local-aot.cmd
+publish-local-single-file-x86.cmd
 run-sde-single-file.cmd
 run-sde-aot.cmd
 run-sde-matrix.cmd
+run-sde-x86.cmd
 ```
 
-The probe compares vector and scalar results and exits with code `100` on success. Test on Intel SDE first, then on the real target processor. A successful SDE run is valuable but does not replace real-hardware validation.
+The probe compares vector and scalar results and exits with code `100` on success. The wrapper scripts translate that result to command-shell exit code `0`. Test on Intel SDE first, then on the real target processor. A successful SDE run is valuable but does not replace real-hardware validation.
 
 ## Updating this fork
 
