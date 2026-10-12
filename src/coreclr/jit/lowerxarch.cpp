@@ -4941,7 +4941,6 @@ GenTree* Lowering::LowerHWIntrinsicCreate(GenTreeHWIntrinsic* node)
                     opN = node->Op(N + 1);
 
                     tmp2 = InsertNewSimdCreateScalarUnsafeNode(TYP_SIMD16, opN, simdBaseType, 16);
-                    LowerNode(tmp2);
 
                     idx = m_compiler->gtNewIconNode(N << 4, TYP_INT);
 
@@ -4959,7 +4958,6 @@ GenTree* Lowering::LowerHWIntrinsicCreate(GenTreeHWIntrinsic* node)
                 opN = node->Op(argCnt);
 
                 tmp2 = InsertNewSimdCreateScalarUnsafeNode(TYP_SIMD16, opN, simdBaseType, 16);
-                LowerNode(tmp2);
 
                 idx = m_compiler->gtNewIconNode((argCnt - 1) << 4, TYP_INT);
                 BlockRange().InsertAfter(tmp2, idx);
@@ -4981,7 +4979,6 @@ GenTree* Lowering::LowerHWIntrinsicCreate(GenTreeHWIntrinsic* node)
             {
                 opN   = node->Op(N + 1);
                 op[N] = InsertNewSimdCreateScalarUnsafeNode(TYP_SIMD16, opN, simdBaseType, 16);
-                LowerNode(op[N]);
             }
 
             tmp1 = m_compiler->gtNewSimdHWIntrinsicNode(simdType, op[0], op[1], NI_X86Base_UnpackLow,
