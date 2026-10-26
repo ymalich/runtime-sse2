@@ -5814,6 +5814,16 @@ GenTree* Compiler::impXplatIntrinsic(NamedIntrinsic        intrinsic,
                 {
                     break;
                 }
+
+                if (!compOpportunisticallyDependsOn(InstructionSet_SSE42))
+                {
+                    // The xarch integer division emulation uses ptest and blendvps/blendvpd,
+                    // which are SSE4.1 instructions. This covers System.Numerics.Vector<T> as
+                    // well as the Vector128<T>/Vector256<T> division operators. Fall back to the
+                    // managed scalar loop on the SSE2 baseline instead of leaving an unsupported
+                    // node in codegen.
+                    break;
+                }
                 impSpillSideEffect(true, stackState.esStackDepth -
                                              2 DEBUGARG("Spilling op1 side effects for vector integer division"));
 #else
