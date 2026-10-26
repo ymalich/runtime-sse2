@@ -75,7 +75,7 @@ Optional arguments are the SDE executable, probe executable, and CPU profile:
 run-sde-x86.cmd T:\SDE\sde.exe D:\Tests\Sse2BaselineProbe.exe p4p
 ```
 
-The validated run reports `64-bit=False`, enables only SSE and SSE2, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passes all 243 checks. `run-sde-x86.cmd` converts the probe's success code `100` to command-shell exit code `0`.
+The validated run reports `64-bit=False`, enables only SSE and SSE2, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passed all 243 checks of the earlier probe revision. The current probe adds integer SIMD division coverage and passes all 275 checks in the x64 SDE matrices; rebuild and republish the x86 artifacts to rerun the full set on 32-bit. `run-sde-x86.cmd` converts the probe's success code `100` to command-shell exit code `0`.
 
 Use the self-contained single-file executable for the x86 SDE test. In the tested environment, a framework-dependent `sde -> dotnet.exe -> application.dll` launch caused Intel SDE's internal IA-32 `pind.exe` process to fail in `smserver-plugin.dll`; this was an SDE backend failure, not a runtime JIT failure.
 

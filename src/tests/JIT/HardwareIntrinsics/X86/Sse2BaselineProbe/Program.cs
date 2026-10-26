@@ -31,6 +31,8 @@ internal static class Program
             Run(nameof(TestGetAndWithElement), TestGetAndWithElement);
             Run(nameof(TestShuffle), TestShuffle);
             Run(nameof(TestWidenAndNarrow), TestWidenAndNarrow);
+            Run(nameof(TestVectorDivision), TestVectorDivision);
+            Run(nameof(TestVector128IntegerDivision), TestVector128IntegerDivision);
             Run(nameof(TestExtractMostSignificantBits), TestExtractMostSignificantBits);
             Run(nameof(TestConversionsAndMemory), TestConversionsAndMemory);
             Run(nameof(TestPopCount), TestPopCount);
@@ -308,6 +310,92 @@ internal static class Program
         Vector128<uint> narrowUpper = Vector128.Create(2U, 60000U, 19U, 40000U);
         Vector128<ushort> narrowUnsigned = Vector128.Narrow(narrowLower, narrowUpper);
         AssertVector(narrowUnsigned, new ushort[] { 1, 65535, 17, 32768, 2, 60000, 19, 40000 }, "Narrow<uint>");
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void TestVectorDivision()
+    {
+        // System.Numerics.Vector<T> integral division is emulated with SSE4.1 instructions
+        // (ptest/blendvps/blendvpd) by the JIT. On the SSE2 baseline it must use the managed
+        // scalar fallback instead, including for unsigned lanes whose quotient exceeds 2^31 - 1.
+        int count = Vector<int>.Count;
+        int[] signedLeft = new int[count];
+        int[] signedRight = new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            signedLeft[i] = (i & 3) switch
+            {
+                0 => 1000,
+                1 => -1000,
+                2 => int.MaxValue - 1,
+                _ => -123456789,
+            };
+            signedRight[i] = (i % 3) + 2;
+        }
+        Vector<int> signedQuotient = new Vector<int>(signedLeft) / new Vector<int>(signedRight);
+        for (int i = 0; i < count; i++)
+            Equal(signedLeft[i] / signedRight[i], signedQuotient[i], $"Vector<int> division[{i}]");
+
+        uint[] unsignedLeft = new uint[count];
+        uint[] unsignedRight = new uint[count];
+        for (int i = 0; i < count; i++)
+        {
+            unsignedLeft[i] = (i & 3) switch
+            {
+                0 => uint.MaxValue,
+                1 => 0x8000_0000U,
+                2 => 123456789U,
+                _ => 0U,
+            };
+            unsignedRight[i] = (i & 1) == 0 ? 1U : 3U;
+        }
+        Vector<uint> unsignedQuotient = new Vector<uint>(unsignedLeft) / new Vector<uint>(unsignedRight);
+        for (int i = 0; i < count; i++)
+            Equal(unsignedLeft[i] / unsignedRight[i], unsignedQuotient[i], $"Vector<uint> division[{i}]");
+
+        // The same integer-division emulation is used by the Vector128<T>/Vector256<T> operators.
+        // Quotients of uint.MaxValue / 1 need the per-32-bit-lane correction from the SSE4.1 path.
+        Vector128<uint> left128 = Vector128.Create(uint.MaxValue, 9u, 1u, 1u);
+        Vector128<uint> right128 = Vector128.Create(1u, 3u, 1u, 1u);
+        Vector128<uint> quotient128 = left128 / right128;
+        for (int i = 0; i < Vector128<uint>.Count; i++)
+            Equal(left128.GetElement(i) / right128.GetElement(i), quotient128.GetElement(i), $"Vector128<uint> division[{i}]");
+
+        left128 = Vector128.Create(0x8000_0001u, 0x7FFF_FFFFu, 9u, 0x8000_0000u);
+        right128 = Vector128.Create(1u, 1u, 3u, 1u);
+        quotient128 = left128 / right128;
+        for (int i = 0; i < Vector128<uint>.Count; i++)
+            Equal(left128.GetElement(i) / right128.GetElement(i), quotient128.GetElement(i), $"Vector128<uint> division 2[{i}]");
+
+        Vector256<uint> left256 = Vector256.Create(uint.MaxValue, 9u, 1u, 1u, 7u, uint.MaxValue, 3_000_000_000u, 8u);
+        Vector256<uint> right256 = Vector256.Create(1u, 3u, 1u, 1u, 7u, 1u, 1u, 2u);
+        Vector256<uint> quotient256 = left256 / right256;
+        for (int i = 0; i < Vector256<uint>.Count; i++)
+            Equal(left256.GetElement(i) / right256.GetElement(i), quotient256.GetElement(i), $"Vector256<uint> division[{i}]");
+    }
+
+    // Covers the SIMD integer division emulation path (Vector128<int>/<uint>.op_Division).
+    // The JIT lowers this via a double divide; on an SSE2-only baseline it must not
+    // emit any SSE4.1 instructions (ptest/blendvps/blendvpd) - the SDE p4p/mrm/pnr
+    // profiles will fail with #UD if the fallback is wrong.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static void TestVector128IntegerDivision()
+    {
+        Console.WriteLine("  op_Division<int>");
+        Vector128<int> ia = Vector128.Create(1000 + s_seed, -1000, 1234, int.MaxValue);
+        Vector128<int> ib = Vector128.Create(-3, 7, 45, 1);
+        AssertVector(ia / ib,
+                     new[] { ia.GetElement(0) / ib.GetElement(0), ia.GetElement(1) / ib.GetElement(1),
+                             ia.GetElement(2) / ib.GetElement(2), ia.GetElement(3) / ib.GetElement(3) },
+                     "op_Division<int>");
+
+        Console.WriteLine("  op_Division<uint>");
+        Vector128<uint> ua = Vector128.Create(0x80000000u, uint.MaxValue, 1234500u, 1u);
+        Vector128<uint> ub = Vector128.Create(1u, 1u, 45u, 0x7FFFFFFFu);
+        AssertVector(ua / ub,
+                     new[] { ua.GetElement(0) / ub.GetElement(0), ua.GetElement(1) / ub.GetElement(1),
+                             ua.GetElement(2) / ub.GetElement(2), ua.GetElement(3) / ub.GetElement(3) },
+                     "op_Division<uint>");
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
