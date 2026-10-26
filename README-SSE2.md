@@ -20,6 +20,7 @@ The upstream .NET 11 runtime raised its x86/x64 requirements and uses newer inst
 - SSE3, SSSE3, SSE4.1, SSE4.2, and POPCNT are optional;
 - the JIT uses newer instructions when the complete required ISA group is available;
 - software or SSE2 code-generation fallbacks are used when that group is unavailable;
+- integer SIMD division (`System.Numerics.Vector<T>` and `Vector128<T>`/`Vector256<T>`) uses the managed scalar fallback unless the SSE4.2 group is available, because its xarch emulation uses SSE4.1 `ptest`/`blendvps`;
 - the default ReadyToRun baseline is SSE2 instead of `x86-64-v3`;
 - NativeAOT applications can be compiled with `IlcInstructionSet=base` for an SSE2-compatible target.
 
@@ -95,7 +96,7 @@ run-sde-x86.cmd
 
 `publish-local-single-file-x86.cmd` publishes a self-contained, trimmed `win-x86` executable to `publish-single-file-x86`. It accepts an optional full path to an alternative system x64 `dotnet.exe` as its first argument. `run-sde-x86.cmd` uses `T:\SDE\sde.exe`, the generated probe, and the `p4p` CPU profile by default; these can be overridden with its first, second, and third arguments respectively.
 
-The validated `p4p` result reports a 32-bit process, exposes SSE and SSE2 only, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passes all 243 probe checks. A framework-dependent `sde -> dotnet.exe -> application.dll` test is not recommended for this x86 check because the tested Intel SDE build crashed in its internal IA-32 `pind.exe` backend. The self-contained single-file executable is the supported x86 SDE path.
+The validated `p4p` result reports a 32-bit process, exposes SSE and SSE2 only, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passed all 243 checks of the earlier probe revision. The current probe adds integer SIMD division coverage and passes all 275 checks in the x64 single-file and NativeAOT SDE matrices; rebuild the x86 runtime and probe to rerun the same 275 checks on `win-x86`. A framework-dependent `sde -> dotnet.exe -> application.dll` test is not recommended for this x86 check because the tested Intel SDE build crashed in its internal IA-32 `pind.exe` backend. The self-contained single-file executable is the supported x86 SDE path.
 
 ## Configuring an application project
 
