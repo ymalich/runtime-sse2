@@ -30,7 +30,7 @@ The current Windows x64 build has been tested with Intel SDE profiles and on an 
 
 ## Important limitations
 
-- The general publication examples below use the validated `win-x64` configuration. A separate section documents the validated `win-x86` build and single-file JIT test.
+- The general publication examples below use `win-x64`. The same scripts accept `x86`; a separate section documents the `win-x86` build and single-file JIT test.
 - A target processor must support SSE2.
 - Restoring CPU compatibility does not add support for operating systems that are unsupported by .NET 11.
 - NativeAOT has no JIT fallback. Its instruction-set baseline must be compatible with the target CPU.
@@ -45,10 +45,12 @@ Install the normal prerequisites for building dotnet/runtime on Windows, includi
 From the repository root, run:
 
 ```cmd
-build-local-runtime-sse2.cmd
+build-local-runtime-sse2.cmd [x64|x86]
 ```
 
-The helper builds the Release x64 runtime, host, libraries, NativeAOT compiler, NativeAOT runtime pack, Crossgen2 pack, and ILLink package. It also installs `Microsoft.NETCore.App 11.0.0-sse2` into the repository-local `.dotnet` directory. This local installation is required to run framework-dependent build tools, such as ILLink, whose runtime configuration requests the same `sse2` prerelease version. It does not modify the system-wide .NET installation.
+The architecture defaults to `x64` and can also be supplied through the `ARCHITECTURE` environment variable. Any other value is rejected before the build starts. The helper builds the Release runtime, host, libraries, NativeAOT compiler, NativeAOT runtime pack, Crossgen2 pack, and ILLink package for the selected architecture. It also installs `Microsoft.NETCore.App <version>-sse2` into the repository-local SDK, which is required to run framework-dependent build tools such as ILLink whose runtime configuration requests the same `sse2` prerelease version. The installation uses `.dotnet` for x64 and `.dotnet\x86` for x86, so both architectures can coexist in one checkout without replacing each other. The system-wide .NET installation is not modified.
+
+The package version is read from `eng\Versions.props` (`MajorVersion`, `MinorVersion`, and `PatchVersion`) and suffixed with `sse2`. The scripts do not carry their own copy of the version, so a normal upstream servicing bump is picked up automatically.
 
 The local NuGet feed is created at:
 
@@ -59,8 +61,8 @@ artifacts\packages\Release\Shipping
 The examples below assume:
 
 ```text
-Custom runtime repository: T:\Git\runtime-11-sse2-ox-alpha
-Package version:           11.0.0-sse2
+Custom runtime repository: T:\Git\runtime-11-sse2-v11.0.0
+Package version:           11.0.0-sse2   (eng\Versions.props plus the sse2 suffix)
 Runtime identifier:        win-x64
 ```
 
@@ -68,13 +70,13 @@ Replace the repository path if your checkout is elsewhere.
 
 ### Building and testing Windows x86
 
-Use a separate checkout for the x86 artifacts so that x64 and x86 build outputs and repository-local runtime installations cannot be mixed. From the root of that checkout, run:
+Pass `x86` to the same helper:
 
 ```cmd
-build-local-runtime-sse2-x86.cmd
+build-local-runtime-sse2.cmd x86
 ```
 
-The x86 helper builds the Release runtime, x86 host, libraries, Crossgen2, NativeAOT compiler and runtime pack, and ILLink package. Expected packages include:
+The x86 build produces the runtime, x86 host, libraries, Crossgen2, NativeAOT compiler and runtime pack, and ILLink package. Expected packages include:
 
 ```text
 Microsoft.NETCore.App.Runtime.win-x86.11.0.0-sse2.nupkg
@@ -86,7 +88,13 @@ dotnet-runtime-11.0.0-sse2-win-x86.msi
 dotnet-runtime-11.0.0-sse2-win-x86.zip
 ```
 
-The x86 build installs the x86 custom shared framework into the checkout's `.dotnet` directory. That directory also contains an x64 SDK host, so it must not be used to run framework-dependent build tools after the x86 runtime installation: an x64 process cannot load the x86 `hostpolicy.dll`. The supplied x86 single-file publication helper avoids this architecture mismatch by using a system-wide x64 .NET 11 SDK and starting it outside the repository, where the repository `global.json` cannot select the local SDK:
+The x86 custom shared framework is installed into `.dotnet\x86\shared\Microsoft.NETCore.App\<version>-sse2`, the standard multi-arch location. It therefore does not replace the x64 framework used by the repository-local SDK host, and the checkout's x64 build tools keep working after an x86 build.
+
+Both architectures share `artifacts\packages\Release\Shipping`, and the stale-package cleanup deletes every package with the current version. An x86 build therefore removes the same-version x64 packages from that feed, and the reverse. Copy the packages you still need, or keep a separate checkout per architecture when both feeds must exist at the same time.
+
+The local helper also removes pack-layout directories for other versions under `artifacts\obj`. Without that cleanup, a stable-identity release build in the same checkout leaves a second version of the same pack behind, and WiX harvesting fails because it expects exactly one match per file.
+
+The x86 probe is published and run with the x86 helper scripts. They use a system-wide x64 .NET 11 SDK and start it outside the repository, so the repository `global.json` cannot select the local SDK:
 
 ```cmd
 cd src\tests\JIT\HardwareIntrinsics\X86\Sse2BaselineProbe
@@ -98,9 +106,33 @@ run-sde-x86.cmd
 
 The validated `p4p` result reports a 32-bit process, exposes SSE and SSE2 only, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passed all 243 checks of the earlier probe revision. The current probe adds integer SIMD division coverage and passes all 275 checks in the x64 single-file and NativeAOT SDE matrices; rebuild the x86 runtime and probe to rerun the same 275 checks on `win-x86`. A framework-dependent `sde -> dotnet.exe -> application.dll` test is not recommended for this x86 check because the tested Intel SDE build crashed in its internal IA-32 `pind.exe` backend. The self-contained single-file executable is the supported x86 SDE path.
 
+## Building the stable release installers
+
+The release helpers build user-facing installers with the official framework identity, for example `11.0.0` without the `-sse2` suffix, from the same source tree:
+
+```cmd
+build-release-runtime-sse2.cmd [x64|x86]
+```
+
+The helper builds the runtime, host, hostfxr, apphost and targeting packs, NativeAOT, Crossgen2, and ILLink packages, installs the stable shared framework into the local SDK (`.dotnet` or `.dotnet\x86`), and copies the installer to:
+
+```text
+artifacts\sse2-distribution\<version>\dotnet-runtime-<version>-sse2-win-<arch>.exe
+```
+
+The `-sse2` suffix appears only in the public file name; package and framework identity stay stable. Installing such a bundle replaces the official runtime of the same version on the target computer. The installers are not code-signed, so Windows SmartScreen reports an unknown publisher; verify the `.sha256` file written next to each installer.
+
+The Windows Desktop bundle is produced from a separate dotnet/windowsdesktop checkout with:
+
+```cmd
+build-release-windowsdesktop-sse2.cmd <runtime-checkout> [x64|x86]
+```
+
+Both release helpers read the version from `eng\Versions.props`. The runtime helper reads its own checkout; the desktop helper reads its own checkout and verifies that the runtime feed it consumes has the same version.
+
 ## Configuring an application project
 
-The custom packages use the distinctive version `11.0.0-sse2`, produced with `VersionSuffix=sse2`. This suffix separates the fork's artifacts from packages produced by a regular dotnet/runtime checkout. A regular .NET 11 SDK may otherwise select its bundled official runtime version. Add the following items to the application project so that restore selects the custom CoreCLR, apphost, Crossgen2, NativeAOT compiler, NativeAOT runtime, and linker packs.
+The custom packages use the distinctive version `11.0.0-sse2`, produced with `VersionSuffix=sse2` on top of the version in `eng\Versions.props`. This suffix separates the fork's artifacts from packages produced by a regular dotnet/runtime checkout. A regular .NET 11 SDK may otherwise select its bundled official runtime version. Add the following items to the application project so that restore selects the custom CoreCLR, apphost, Crossgen2, NativeAOT compiler, NativeAOT runtime, and linker packs.
 
 ```xml
 <PropertyGroup>
@@ -147,7 +179,7 @@ Use an isolated package cache for the custom runtime. Delete this cache before r
 The following commands use the SDK bootstrapped in this repository:
 
 ```cmd
-set "CUSTOM_RUNTIME=T:\Git\runtime-11-sse2-ox-alpha"
+set "CUSTOM_RUNTIME=T:\Git\runtime-11-sse2-v11.0.0"
 set "CUSTOM_FEED=%CUSTOM_RUNTIME%\artifacts\packages\Release\Shipping"
 set "CUSTOM_PACKAGES=%CD%\.nuget-custom-runtime"
 ```
@@ -329,6 +361,8 @@ This fork is intended to track the upstream .NET 11 release branch. When rebasin
 3. rebuild all runtime and compiler packages;
 4. clear isolated NuGet caches;
 5. republish and run the JIT, ReadyToRun, and NativeAOT tests under SDE and on real older hardware.
+
+The build, release, and probe publication helpers read the product version from `eng\Versions.props`, so a servicing merge needs no version edits in the scripts. The probe project receives that value through the `CustomRuntimeVersion` MSBuild property; its built-in default is used only when the project is copied elsewhere and built standalone. Update the version references in this document only if you want the examples to show the new version.
 
 ## License and support
 

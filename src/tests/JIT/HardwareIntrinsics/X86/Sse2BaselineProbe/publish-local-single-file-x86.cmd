@@ -6,7 +6,12 @@ set "RUNTIME_ROOT=%~dp0..\..\..\..\..\.."
 set "LOCAL_FEED=%RUNTIME_ROOT%\artifacts\packages\Release\Shipping"
 set "NUGET_PACKAGES=%RUNTIME_ROOT%\artifacts\sse2-baseline-probe\nuget-single-file-x86"
 set "PUBLISH_DIR=%PROBE_ROOT%publish-single-file-x86"
-set "PACKAGE_VERSION=11.0.0-sse2"
+set "VERSION_SUFFIX=sse2"
+rem Derive the product version from eng\Versions.props so the probe follows the
+rem checkout instead of carrying a hand-maintained copy of the version number.
+set "VERSIONS_PROPS=%RUNTIME_ROOT%\eng\Versions.props"
+call :ReadProductVersion || exit /b 1
+set "PACKAGE_VERSION=%PRODUCT_VERSION%-%VERSION_SUFFIX%"
 set "PACKED_JIT=%NUGET_PACKAGES%\microsoft.netcore.app.runtime.win-x86\%PACKAGE_VERSION%\runtimes\win-x86\native\clrjit.dll"
 set "DOTNET_EXE=%~1"
 set "MSBUILDDISABLENODEREUSE=1"
@@ -23,15 +28,15 @@ if not exist "%DOTNET_EXE%" (
 "%DOTNET_EXE%" --list-sdks | findstr /r /b "11\." >nul
 if errorlevel 1 (
     echo ERROR: A system-wide x64 .NET 11 SDK is required.
-    echo        The repository-local SDK cannot be used after an x86 runtime
-    echo        has been installed into its shared framework directory.
+    echo        A system-wide x64 SDK is used so that the repository global.json
+    echo        cannot select the repository-local SDK.
     exit /b 2
 )
 
 if not exist "%LOCAL_FEED%\Microsoft.NETCore.App.Runtime.win-x86.%PACKAGE_VERSION%.nupkg" (
     echo ERROR: Local x86 runtime package was not found:
     echo        %LOCAL_FEED%\Microsoft.NETCore.App.Runtime.win-x86.%PACKAGE_VERSION%.nupkg
-    echo Run build-local-runtime-sse2-x86.cmd first.
+    echo Run build-local-runtime-sse2.cmd x86 first.
     exit /b 1
 )
 
@@ -60,7 +65,7 @@ echo Mode         : self-contained, trimmed, single file
 echo.
 
 rem Run outside the repository so global.json does not select the repository-local
-rem x64 SDK whose shared framework directory contains the x86 custom runtime.
+rem SDK, which is bound to this checkout.
 pushd "%TEMP%"
 "%DOTNET_EXE%" publish "%PROBE_ROOT%Sse2BaselineProbe.csproj" ^
     --disable-build-servers ^
@@ -75,6 +80,7 @@ pushd "%TEMP%"
     -p:IncludeNativeLibrariesForSelfExtract=true ^
     -p:DebugType=None ^
     -p:DebugSymbols=false ^
+    -p:CustomRuntimeVersion=%PACKAGE_VERSION% ^
     -p:RestoreAdditionalProjectSources="%LOCAL_FEED%" ^
     -o "%PUBLISH_DIR%"
 set "EXITCODE=%ERRORLEVEL%"
@@ -99,3 +105,21 @@ exit /b 1
 :wrongruntime
 echo ERROR: The local %PACKAGE_VERSION% win-x86 runtime package was not restored.
 exit /b 1
+
+:ReadProductVersion
+rem Read MajorVersion/MinorVersion/PatchVersion from the eng\Versions.props of the
+rem checkout named by VERSIONS_PROPS and expose the result as PRODUCT_VERSION.
+if not exist "%VERSIONS_PROPS%" (
+    echo ERROR: Version file was not found: %VERSIONS_PROPS%
+    exit /b 1
+)
+set "PRODUCT_VERSION="
+for /f "usebackq delims=" %%v in (`powershell.exe -NoProfile -NonInteractive -Command "$g=([xml](Get-Content -Raw -LiteralPath '%VERSIONS_PROPS%')).Project.PropertyGroup; '{0}.{1}.{2}' -f @($g.MajorVersion)[0],@($g.MinorVersion)[0],@($g.PatchVersion)[0]"`) do set "PRODUCT_VERSION=%%v"
+echo %PRODUCT_VERSION%| findstr /r "^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >nul
+if errorlevel 1 (
+    echo ERROR: Could not read MajorVersion, MinorVersion and PatchVersion from:
+    echo        %VERSIONS_PROPS%
+    echo        Read value: "%PRODUCT_VERSION%"
+    exit /b 1
+)
+exit /b 0

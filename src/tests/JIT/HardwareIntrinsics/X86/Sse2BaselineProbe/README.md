@@ -21,8 +21,9 @@ publish-self-contained\Sse2BaselineProbe.exe
 ```
 
 Copy the entire `publish-self-contained` directory to the target machine, not only the executable.
-The script pins `Microsoft.NETCore.App.Runtime.win-x64` to the locally built `11.0.0-sse2` package and
-verifies that `coreclr.dll`, `clrjit.dll`, and `System.Private.CoreLib.dll` are present in the result.
+The script uses the locally built `Microsoft.NETCore.App.Runtime.win-x64` package for the version in
+`eng\Versions.props` and verifies that `coreclr.dll`, `clrjit.dll`, and `System.Private.CoreLib.dll` are
+present in the result.
 
 To bundle the custom JIT runtime into one trimmed executable:
 
@@ -45,7 +46,8 @@ This is the supported SDE test for the custom JIT.
 
 ## Windows x86 single-file JIT test
 
-Build the `win-x86` runtime and packages from a separate x86 checkout, then publish the 32-bit probe with:
+Build the `win-x86` runtime and packages in this checkout with `build-local-runtime-sse2.cmd x86`, then
+publish the 32-bit probe with:
 
 ```cmd
 publish-local-single-file-x86.cmd
@@ -57,7 +59,10 @@ The script creates:
 publish-single-file-x86\Sse2BaselineProbe.exe
 ```
 
-The repository-local `.dotnet` directory combines an x64 SDK host with the locally installed x86 custom shared framework. That x64 host cannot load the x86 `hostpolicy.dll`. To avoid this architecture mismatch, the x86 publication script uses the system-wide x64 .NET 11 SDK and starts it outside the repository so that `global.json` does not select the repository-local SDK. An alternative x64 `dotnet.exe` can be passed as the first argument:
+The x86 build installs its shared framework into `.dotnet\x86`, so the repository-local x64 SDK in `.dotnet`
+keeps working. The x86 publication script still uses a system-wide x64 .NET 11 SDK and starts it outside the
+repository so that `global.json` cannot select the repository-local SDK. An alternative x64 `dotnet.exe` can
+be passed as the first argument:
 
 ```cmd
 publish-local-single-file-x86.cmd "C:\Program Files\dotnet\dotnet.exe"

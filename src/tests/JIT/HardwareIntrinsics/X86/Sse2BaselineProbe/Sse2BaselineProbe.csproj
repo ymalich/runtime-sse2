@@ -5,24 +5,27 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Standalone default. The publication scripts override this property with the
+         version they derive from eng\Versions.props. -->
+    <CustomRuntimeVersion Condition="'$(CustomRuntimeVersion)' == ''">11.0.0-sse2</CustomRuntimeVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <KnownFrameworkReference Update="Microsoft.NETCore.App">
-      <DefaultRuntimeFrameworkVersion>11.0.0-sse2</DefaultRuntimeFrameworkVersion>
-      <LatestRuntimeFrameworkVersion>11.0.0-sse2</LatestRuntimeFrameworkVersion>
+      <DefaultRuntimeFrameworkVersion>$(CustomRuntimeVersion)</DefaultRuntimeFrameworkVersion>
+      <LatestRuntimeFrameworkVersion>$(CustomRuntimeVersion)</LatestRuntimeFrameworkVersion>
     </KnownFrameworkReference>
     <KnownAppHostPack Update="Microsoft.NETCore.App">
-      <AppHostPackVersion>11.0.0-sse2</AppHostPackVersion>
+      <AppHostPackVersion>$(CustomRuntimeVersion)</AppHostPackVersion>
     </KnownAppHostPack>
     <KnownILCompilerPack Update="Microsoft.DotNet.ILCompiler">
-      <ILCompilerPackVersion>11.0.0-sse2</ILCompilerPackVersion>
+      <ILCompilerPackVersion>$(CustomRuntimeVersion)</ILCompilerPackVersion>
     </KnownILCompilerPack>
     <KnownRuntimePack Update="Microsoft.NETCore.App">
-      <LatestRuntimeFrameworkVersion>11.0.0-sse2</LatestRuntimeFrameworkVersion>
+      <LatestRuntimeFrameworkVersion>$(CustomRuntimeVersion)</LatestRuntimeFrameworkVersion>
     </KnownRuntimePack>
     <KnownILLinkPack Update="Microsoft.NET.ILLink.Tasks">
-      <ILLinkPackVersion>11.0.0-sse2</ILLinkPackVersion>
+      <ILLinkPackVersion>$(CustomRuntimeVersion)</ILLinkPackVersion>
     </KnownILLinkPack>
   </ItemGroup>
 </Project>
