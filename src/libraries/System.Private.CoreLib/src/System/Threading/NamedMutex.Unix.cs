@@ -209,7 +209,8 @@ namespace System.Threading
                     createIfNotExist,
                     acquireLockIfCreated,
                     out created,
-                    out AutoReleaseFileLock creationDeletionLockFileScope);
+                    out AutoReleaseFileLock creationDeletionLockFileScope,
+                    out SafeFileHandle runtimeDirectoryHandle);
 
                 if (processDataHeader is null)
                 {
@@ -231,7 +232,10 @@ namespace System.Threading
                         }
                         else
                         {
-                            processDataHeader._processData = new NamedMutexProcessDataNoPThreads(processDataHeader, created);
+                            processDataHeader._processData = new NamedMutexProcessDataNoPThreads(
+                                processDataHeader,
+                                runtimeDirectoryHandle,
+                                created);
                         }
 
                         if (created && acquireLockIfCreated)
@@ -419,34 +423,46 @@ namespace System.Threading
     internal sealed unsafe class NamedMutexProcessDataNoPThreads : NamedMutexProcessDataBase
     {
         private const string SharedMemoryLockFilesDirectoryName = "lockfiles";
+
         private readonly Mutex _processLevelMutex = new Mutex(initiallyOwned: false);
         private readonly SafeFileHandle _sharedLockFileHandle;
 
         private readonly SharedData* _sharedData;
 
-        public NamedMutexProcessDataNoPThreads(SharedMemoryProcessDataHeader<NamedMutexProcessDataBase> processDataHeader, bool created) : base(processDataHeader)
+        public NamedMutexProcessDataNoPThreads(
+            SharedMemoryProcessDataHeader<NamedMutexProcessDataBase> processDataHeader,
+            SafeFileHandle runtimeDirectoryHandle,
+            bool created) : base(processDataHeader)
         {
             _sharedData = (SharedData*)SharedMemoryProcessDataHeader<NamedMutexProcessDataBase>.GetDataPointer(processDataHeader);
-            string lockFileDirectory = Path.Combine(
-                SharedMemoryHelpers.SharedFilesPath,
-                Id.GetRuntimeTempDirectoryName(),
-                SharedMemoryLockFilesDirectoryName
-            );
+            string lockFilesDirectoryPath = Path.Combine(
+                SharedMemoryHelpers.GetSharedFilesSystemPath(Id),
+                SharedMemoryHelpers.GetRuntimeDirectoryName(Id),
+                SharedMemoryLockFilesDirectoryName);
+            using SafeFileHandle lockFilesDirectoryHandle = SharedMemoryHelpers.EnsureDirectoryExists(
+                runtimeDirectoryHandle,
+                SharedMemoryLockFilesDirectoryName,
+                lockFilesDirectoryPath,
+                Id,
+                created);
 
-            if (created)
-            {
-                SharedMemoryHelpers.EnsureDirectoryExists(lockFileDirectory, Id, isGlobalLockAcquired: true);
-            }
+            string sessionDirectoryName = SharedMemoryHelpers.GetSessionDirectoryName(Id);
+            using SafeFileHandle sessionDirectoryHandle = lockFilesDirectoryHandle.IsInvalid
+                ? new SafeFileHandle()
+                : SharedMemoryHelpers.EnsureDirectoryExists(
+                    lockFilesDirectoryHandle,
+                    sessionDirectoryName,
+                    Path.Combine(lockFilesDirectoryPath, sessionDirectoryName),
+                    Id,
+                    created);
 
-            string sessionDirectory = Path.Combine(lockFileDirectory, Id.GetSessionDirectoryName());
-
-            if (created)
-            {
-                SharedMemoryHelpers.EnsureDirectoryExists(sessionDirectory, Id, isGlobalLockAcquired: true);
-            }
-
-            string lockFilePath = Path.Combine(sessionDirectory, Id.Name);
-            _sharedLockFileHandle = SharedMemoryHelpers.CreateOrOpenFile(lockFilePath, Id, created, out _);
+            _sharedLockFileHandle = SharedMemoryHelpers.CreateOrOpenFile(
+                sessionDirectoryHandle,
+                Id.Name,
+                Path.Combine(lockFilesDirectoryPath, sessionDirectoryName, Id.Name),
+                Id,
+                created,
+                out _);
         }
 
         protected override bool IsLockOwnedByThreadInThisProcess(Thread thread)
@@ -571,22 +587,28 @@ namespace System.Threading
                             break;
                         }
 
-                        _sharedData->TimedWaiterCount++;
-
-                        do
+                        // The timed waiter count is shared between processes, so it must be updated atomically and must be
+                        // decremented on every exit path, including exceptions such as ThreadInterruptedException from the sleep.
+                        _sharedData->IncrementTimedWaiterCount();
+                        try
                         {
-                            int elapsedMilliseconds = Environment.TickCount - startTime;
-                            if (elapsedMilliseconds >= timeoutMilliseconds)
+                            do
                             {
-                                _sharedData->TimedWaiterCount--;
-                                return MutexTryAcquireLockResult.TimedOut;
-                            }
+                                int elapsedMilliseconds = Environment.TickCount - startTime;
+                                if (elapsedMilliseconds >= timeoutMilliseconds)
+                                {
+                                    return MutexTryAcquireLockResult.TimedOut;
+                                }
 
-                            int remainingTimeoutMilliseconds = timeoutMilliseconds - elapsedMilliseconds;
-                            int sleepMilliseconds = Math.Min(PollLoopMaximumSleepMilliseconds, remainingTimeoutMilliseconds);
-                            Thread.Sleep(sleepMilliseconds);
-                        } while (!SharedMemoryHelpers.TryAcquireFileLock(_sharedLockFileHandle, nonBlocking: true));
-                        _sharedData->TimedWaiterCount--;
+                                int remainingTimeoutMilliseconds = timeoutMilliseconds - elapsedMilliseconds;
+                                int sleepMilliseconds = Math.Min(PollLoopMaximumSleepMilliseconds, remainingTimeoutMilliseconds);
+                                Thread.Sleep(sleepMilliseconds);
+                            } while (!SharedMemoryHelpers.TryAcquireFileLock(_sharedLockFileHandle, nonBlocking: true));
+                        }
+                        finally
+                        {
+                            _sharedData->DecrementTimedWaiterCount();
+                        }
                         break;
                     }
                 }
@@ -617,7 +639,17 @@ namespace System.Threading
             private ulong _lockOwnerThreadId;
             private byte _isAbandoned;
 
-            public uint TimedWaiterCount { get => _timedWaiterCount; set => _timedWaiterCount = value; }
+            public uint TimedWaiterCount
+            {
+                get => Volatile.Read(ref _timedWaiterCount);
+                set => Volatile.Write(ref _timedWaiterCount, value);
+            }
+
+            // The count lives in memory shared with other processes, which do not take this process's locks.
+            public void IncrementTimedWaiterCount() => Interlocked.Increment(ref _timedWaiterCount);
+
+            public void DecrementTimedWaiterCount() => Interlocked.Decrement(ref _timedWaiterCount);
+
             public uint LockOwnerProcessId
             {
                 get
