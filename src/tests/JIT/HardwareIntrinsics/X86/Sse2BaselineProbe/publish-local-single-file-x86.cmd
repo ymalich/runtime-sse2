@@ -15,21 +15,21 @@ set "PACKAGE_VERSION=%PRODUCT_VERSION%-%VERSION_SUFFIX%"
 set "PACKED_JIT=%NUGET_PACKAGES%\microsoft.netcore.app.runtime.win-x86\%PACKAGE_VERSION%\runtimes\win-x86\native\clrjit.dll"
 set "DOTNET_EXE=%~1"
 set "MSBUILDDISABLENODEREUSE=1"
+set "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1"
 
-if not defined DOTNET_EXE set "DOTNET_EXE=%ProgramFiles%\dotnet\dotnet.exe"
+if not defined DOTNET_EXE call :ResolveHost
 
 if not exist "%DOTNET_EXE%" (
     echo ERROR: The x64 .NET SDK host was not found:
     echo        %DOTNET_EXE%
-    echo Pass its full path as the first argument.
+    echo Pass the full path to an x64 dotnet.exe as the first argument.
     exit /b 2
 )
 
 "%DOTNET_EXE%" --list-sdks | findstr /r /b "11\." >nul
 if errorlevel 1 (
-    echo ERROR: A system-wide x64 .NET 11 SDK is required.
-    echo        A system-wide x64 SDK is used so that the repository global.json
-    echo        cannot select the repository-local SDK.
+    echo ERROR: An x64 .NET 11 SDK is required.
+    echo        Pass the full path to an x64 dotnet.exe as the first argument.
     exit /b 2
 )
 
@@ -105,6 +105,15 @@ exit /b 1
 :wrongruntime
 echo ERROR: The local %PACKAGE_VERSION% win-x86 runtime package was not restored.
 exit /b 1
+
+:ResolveHost
+rem Prefer the repository-local x64 host: ILLink runs as an x64 tool and requests
+rem the custom x64 shared framework, which the x86 build installs into .dotnet\x86
+rem without replacing the x64 one.
+set "DOTNET_EXE=%RUNTIME_ROOT%\.dotnet\dotnet.exe"
+if exist "%DOTNET_EXE%" goto :eof
+set "DOTNET_EXE=%ProgramFiles%\dotnet\dotnet.exe"
+goto :eof
 
 :ReadProductVersion
 rem Read MajorVersion/MinorVersion/PatchVersion from the eng\Versions.props of the

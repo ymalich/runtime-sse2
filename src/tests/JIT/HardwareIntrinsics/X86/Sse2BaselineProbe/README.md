@@ -60,9 +60,10 @@ publish-single-file-x86\Sse2BaselineProbe.exe
 ```
 
 The x86 build installs its shared framework into `.dotnet\x86`, so the repository-local x64 SDK in `.dotnet`
-keeps working. The x86 publication script still uses a system-wide x64 .NET 11 SDK and starts it outside the
-repository so that `global.json` cannot select the repository-local SDK. An alternative x64 `dotnet.exe` can
-be passed as the first argument:
+keeps working. The x86 publication script uses that repository-local x64 host by default, because ILLink runs
+as an x64 tool and requests the custom x64 shared framework; it starts the host outside the repository so
+that `global.json` cannot select a different SDK. A different x64 `dotnet.exe` can be passed as the first
+argument, but it must be able to run the custom x64 framework requested by ILLink:
 
 ```cmd
 publish-local-single-file-x86.cmd "C:\Program Files\dotnet\dotnet.exe"
@@ -80,7 +81,7 @@ Optional arguments are the SDE executable, probe executable, and CPU profile:
 run-sde-x86.cmd T:\SDE\sde.exe D:\Tests\Sse2BaselineProbe.exe p4p
 ```
 
-The validated run reports `64-bit=False`, enables only SSE and SSE2, disables SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and passed all 243 checks of the earlier probe revision. The current probe adds integer SIMD division coverage and passes all 275 checks in the x64 SDE matrices; rebuild and republish the x86 artifacts to rerun the full set on 32-bit. `run-sde-x86.cmd` converts the probe's success code `100` to command-shell exit code `0`.
+The validated runs under `p4p`, `mrm`, and `pnr` report `64-bit=False`, enable only SSE and SSE2, disable SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, AVX, and AVX2, and pass all 275 checks, including the integer SIMD division coverage. The `nhm` run passes the same 275 checks with the full SSE3-to-SSE4.2 group and POPCNT enabled. `run-sde-x86.cmd` converts the probe's success code `100` to command-shell exit code `0`.
 
 Use the self-contained single-file executable for the x86 SDE test. In the tested environment, a framework-dependent `sde -> dotnet.exe -> application.dll` launch caused Intel SDE's internal IA-32 `pind.exe` process to fail in `smserver-plugin.dll`; this was an SDE backend failure, not a runtime JIT failure.
 
@@ -97,8 +98,14 @@ run-sde-matrix.cmd aot publish\Sse2BaselineProbe.exe
 ```
 
 The first three profiles must use the SSE2 fallback paths. `nhm` verifies that the optimized SSE4.2 group remains enabled.
-For NativeAOT, `p4p` can reject SSSE3/SSE4 instructions but cannot reject SSE3 instructions; the final SSE2-only
-validation therefore remains a run on a real SSE2-only x64 processor such as the target Athlon II.
+The runtime enables SSE3, SSSE3, SSE4.1, SSE4.2, and POPCNT as one group only when all five are present in the CPU,
+so `mrm` (SSSE3) and `pnr` (SSE4.1) also run the SSE2 fallback paths instead of partial instruction sets; `nhm` and
+newer profiles are the ones that change JIT behavior.
+For NativeAOT, `p4p` rejects SSSE3 and SSE4 instructions but cannot reject SSE3 instructions, because the
+Prescott profile already supports SSE3. Proving that no SSE3 instruction is executed therefore still requires
+a processor that lacks SSE3, such as an early K8 Athlon 64 (before the Venice core). The Athlon II and E-450
+systems used for the real-hardware runs support SSE3, so those runs validate the SSE2 code paths but cannot
+detect accidental SSE3 use.
 
 ## Real-hardware validation
 
@@ -108,5 +115,7 @@ The following locally built applications have passed on an AMD E-450 system:
 - the NativeAOT `Sse2BaselineProbe.exe`;
 
 This verifies both the custom JIT and NativeAOT fallback paths on real AMD hardware in addition to the SDE runs.
+Both systems support SSE3, so these runs confirm the SSE2 code paths on real hardware but cannot prove the
+absence of SSE3 instructions.
 
-The `win-x86` single-file JIT configuration has been validated under Intel SDE `p4p`. It has not yet been recorded as validated on separate physical x86-only hardware, and the x86 NativeAOT configuration requires its own publication and test before it should be listed as verified.
+The `win-x86` single-file JIT configuration has been validated under Intel SDE `p4p`, `mrm`, `pnr`, and `nhm`. It has not yet been recorded as validated on separate physical x86-only hardware, and the x86 NativeAOT configuration requires its own publication and test before it should be listed as verified.
